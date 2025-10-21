@@ -1,0 +1,88 @@
+pipeline{
+    agent any
+
+    environment{
+        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_CREDENTIALS = credentials('aws-credentials')   
+        ECR_REPO = 'node-devops-pro'                      
+        DOCKER_IMAGE_TAG = "v${env.BUILD_NUMBER}"
+    }
+
+    
+    stages{
+        stage("checkout"){
+            steps{
+                git "https://github.com/MDFZ-83/node-devops-pro.git"
+            }
+        }
+    
+
+        stage("Build Docker Images"){
+            parallel{
+            stage("User service"){ 
+                    bat "docker build -t user-service:latest ."
+                }
+
+                stage("Products service"){
+                    bat "docker build it product-service:latest ."
+                }
+
+                stage("Gateway service"){
+                    bat "docker build -t gateway-service:latest ."
+                }
+            }
+        }
+    
+
+    
+        stage("Login to AWS ECR"){
+            steps{
+                
+                bat "aws ecr get-login-password --region $AWS_DEFAULT_REGION "
+                bat "docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+                
+            }
+        }
+
+        stage("Push Image to AWS ECR"){
+            steps{
+                script{
+                    def service = ["user" , "product" , "gateway"]
+                    service.each {s ->
+                        
+                        bat "docker tag ${s}-service:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO}-${s}:${DOCKER_IMAGE_TAG}"
+                        bat "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO}-${s}:${DOCKER_IMAGE_TAG}"
+                        
+                    }
+                }
+            }
+        }
+
+        stage("Terraform Apply"){
+            steps{
+                dir("terraform"){
+                    bat "terraform init"
+                    bat "terraform apply -auto-approve"
+                }
+            }
+        }
+
+        stage("Deploy to KES"){
+            steps{
+                dir("kuber/deployments"){
+                    bat "kubectl apply -f user-deployment"
+                    bat "kubectl apply -f product-deployment"
+                    bat "kubectl apply -f gateway-deployment"
+                }
+
+                dir("kuber/services"){
+                    bat "kubectl apply -f user-service"
+                    bat "kubectl apply -f product-service"
+                    bat "kubectl apply -f gateway-service"
+                }
+
+            }
+        }
+    }
+    
+}

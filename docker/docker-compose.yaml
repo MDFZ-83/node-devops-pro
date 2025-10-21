@@ -1,0 +1,28 @@
+
+services:
+  user:
+    build:
+      context: ../app/user-service
+      dockerfile: ../../docker/Dockerfile.user
+    container_name: user
+    ports:
+      - "3001:3001"
+ 
+  product:
+    build:
+      context: ../app/product-service/
+      dockerfile: ../../docker/Dockerfile.product
+    container_name: product
+    ports:
+      - "3002:3002"
+ 
+  gateway:
+    build:
+      context: ../app/gateway-service/
+      dockerfile: ../../docker/Dockerfile.gateway
+    container_name: gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - user
+      - product
