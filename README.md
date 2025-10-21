@@ -37,7 +37,6 @@ It showcases modern DevOps practices including Infrastructure as Code (IaC), con
 . AWS credentials stored in Jenkins as aws-credentials
 
 
-
 2. Setup AWS ECR
 
 . Create repositories for each service:
